@@ -83,7 +83,7 @@ for packet in clean_cap_30m:
         if layer.layer_name in interesting_layers:
             
             for field_name in layer.field_names:
-                teststring = f'{layer.layer_name}.{field_name}'
+                
                 boolean = False if isinstance(pattern.search(teststring), re.Match) else True
                 if boolean:
                     field_names_set.add(f'{layer.layer_name}.{field_name}')
