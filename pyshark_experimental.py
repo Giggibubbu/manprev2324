@@ -2,7 +2,7 @@ import pandas as pd
 import sklearn 
 import pyshark as pys
 import re
-
+'''modifcaprova'''
 clean_cap_30m = pys.FileCapture(".\\captures\\captures1_v2\\clean\\eth2dump-clean-0,5h_1.pcap")
 # clean_cap_1h = pys.FileCapture("captures\\captures1_v2\\clean\\eth2dump-clean-1h_1.pcap")
 
