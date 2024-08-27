@@ -10,5 +10,7 @@ tcp_fields = ['tcp.srcport', 'tcp.dstport', 'tcp.stream', 'tcp.len', 'tcp.seq', 
             'tcp.checksum.status', 'tcp.urgent_pointer']
 udp_fields = ['udp.srcport', 'udp.dstport', 'udp.port', 'udp.length', 'udp.checksum', 'udp.checksum_status']
 mbtcp_fields = ['mbtcp.trans_id', 'mbtcp.prot_id', 'mbtcp.len', 'mbtcp.unit_id']
-interesting_layer_fields = [eth_fields, arp_fields, icmp_fields, ip_fields, tcp_fields, udp_fields, mbtcp_fields]
-df_columns = [timestamp_field_name] + eth_fields + arp_fields + icmp_fields + ip_fields + tcp_fields + udp_fields + mbtcp_fields
+flags_fields = ['ip.flags.rb','ip.flags.df','ip.flags.mf','tcp.flags.res','tcp.flags.ae','tcp.flags.cwr','tcp.flags.urg','tcp.flags.ack','tcp.flags.push','tcp.flags.syn','tcp.flags.fin']
+interesting_layer_fields = [eth_fields, arp_fields, icmp_fields, ip_fields, tcp_fields, udp_fields, mbtcp_fields,flags_fields]
+prot = ['eth', 'arp', 'icmp', 'ip', 'tcp', 'udp', 'mbtcp']
+df_columns= [timestamp_field_name] + eth_fields + arp_fields + icmp_fields + ip_fields + tcp_fields + udp_fields + mbtcp_fields + flags_fields + prot
