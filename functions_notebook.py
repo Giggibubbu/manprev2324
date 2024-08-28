@@ -162,7 +162,7 @@ def clean_df(dataframe):
     dataframe['tcp.hdr_len'] = dataframe['tcp.hdr_len'].astype(float)
     dataframe['tcp.window_size_value'] = dataframe['tcp.window_size_value'].astype(float)
     dataframe['tcp.window_size'] = dataframe['tcp.window_size'].astype(float)
-    dataframe['tcp.window_size_scalefactor'] = dataframe['tcp.window_size_scalefactor'].astype(float)
+    '''dataframe['tcp.window_size_scalefactor'] = dataframe['tcp.window_size_scalefactor'].astype(float)'''
     dataframe['tcp.urgent_pointer'] = dataframe['tcp.urgent_pointer'].astype(float)
     dataframe['tcp.flags'] = dataframe['tcp.flags'].apply(
         lambda x: int(x, 16) if pd.notnull(x) and isinstance(x, str) and len(x.strip()) > 0 else np.nan
@@ -178,5 +178,57 @@ def clean_df(dataframe):
     dataframe['mbtcp.prot_id'] = dataframe['mbtcp.prot_id'].astype(float)
     dataframe['mbtcp.len'] = dataframe['mbtcp.len'].astype(float)
     dataframe['mbtcp.unit_id'] = dataframe['mbtcp.unit_id'].astype(float)
+
+    dataframe['arp.hw.type'] = dataframe['arp.hw.type'].astype(float)
+    dataframe['arp.proto.type'] = dataframe['arp.proto.type'].apply(
+        lambda x: int(x, 16) if pd.notnull(x) and isinstance(x, str) and len(x.strip()) > 0 else np.nan
+    )
+
+
+
+    dataframe['arp.hw.size'] = dataframe['arp.hw.size'].astype(float)
+    dataframe['arp.proto.size'] = dataframe['arp.proto.size'].astype(float)
+    dataframe['ip.checksum.status'] = dataframe['ip.checksum.status'].astype(float)
+    dataframe['tcp.checksum.status'] = dataframe['tcp.checksum.status'].astype(float)
+    dataframe['udp.srcport'] = dataframe['udp.srcport'].astype(float)
+    dataframe['udp.dstport'] = dataframe['udp.dstport'].astype(float)
+    dataframe['udp.port'] = dataframe['udp.port'].astype(float)
+    dataframe['udp.length'] = dataframe['udp.length'].astype(float)
+    dataframe['udp.checksum'] = dataframe['udp.checksum'].apply(
+        lambda x: int(x, 16) if pd.notnull(x) and isinstance(x, str) and len(x.strip()) > 0 else np.nan
+    )
+    dataframe['ip.flags.rb'] = dataframe['ip.flags.rb'].astype(float)
+    dataframe['ip.flags.df'] = dataframe['ip.flags.df'].astype(float)
+    dataframe['ip.flags.mf'] = dataframe['ip.flags.mf'].astype(float)
+    dataframe['tcp.flags.res'] = dataframe['tcp.flags.res'].astype(float)
+    dataframe['tcp.flags.ae'] = dataframe['tcp.flags.ae'].astype(float)
+    dataframe['tcp.flags.cwr'] = dataframe['tcp.flags.cwr'].astype(float)
+    dataframe['tcp.flags.urg'] = dataframe['tcp.flags.urg'].astype(float)
+    dataframe['tcp.flags.ack'] = dataframe['tcp.flags.ack'].astype(float)
+    dataframe['tcp.flags.push'] = dataframe['tcp.flags.push'].astype(float)
+    dataframe['tcp.flags.syn'] = dataframe['tcp.flags.syn'].astype(float)
+    dataframe['tcp.flags.fin'] = dataframe['tcp.flags.fin'].astype(float)
+    dataframe['eth'] = dataframe['eth'].astype(float)
+    dataframe['arp'] = dataframe['arp'].astype(float)
+    dataframe['icmp'] = dataframe['icmp'].astype(float)
+    dataframe['ip'] = dataframe['ip'].astype(float)
+    dataframe['tcp'] = dataframe['tcp'].astype(float)
+    dataframe['udp'] = dataframe['udp'].astype(float)
+    dataframe['mbtcp'] = dataframe['mbtcp'].astype(float)
+
+    dataframe['icmp.type'] = dataframe['icmp.type'].astype(float)
+    dataframe['icmp.code'] = dataframe['icmp.code'].astype(float)
+    dataframe['icmp.checksum'] = dataframe['icmp.checksum'].apply(
+        lambda x: int(x, 16) if pd.notnull(x) and isinstance(x, str) and len(x.strip()) > 0 else np.nan
+    )
+    dataframe['icmp.checksum.status'] = dataframe['icmp.checksum.status'].astype(float)
+
+
+
+    
+
+
+    
+
 
     return dataframe
