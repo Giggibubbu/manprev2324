@@ -28,74 +28,75 @@ def create_array_values(data):
     for packet in data:
         
         
-            tmp_pkt = []
-            tmp_pkt.append(packet['_source']['layers']['frame']['frame.time_epoch'])
-        
-            for i in range(len(cs.interesting_layers)):
-                if cs.interesting_layers[i] in packet['_source']['layers']:
-                    for field in cs.interesting_layer_fields[i]:
-                        if field in packet['_source']['layers'][cs.interesting_layers[i]]:
-                            tmp_pkt.append(packet['_source']['layers'][cs.interesting_layers[i]][field])
-                        else:
-                            tmp_pkt.append(np.nan)
-                else:
-                    for field in cs.interesting_layer_fields[i]:
+        tmp_pkt = []
+        tmp_pkt.append(packet['_source']['layers']['frame']['frame.time_epoch'])
+    
+        for i in range(len(cs.interesting_layers)):
+            if cs.interesting_layers[i] in packet['_source']['layers']:
+                for field in cs.interesting_layer_fields[i]:
+                    if field in packet['_source']['layers'][cs.interesting_layers[i]]:
+                        tmp_pkt.append(packet['_source']['layers'][cs.interesting_layers[i]][field])
+                    else:
                         tmp_pkt.append(np.nan)
+            else:
+                for field in cs.interesting_layer_fields[i]:
+                    tmp_pkt.append(np.nan)
 
-            if 'ip' in packet['_source']['layers']:
+        if 'ip' in packet['_source']['layers']:
+        
+            # Aggiungi flags
+                if 'ip.flags.rb' in packet['_source']['layers']['ip']['ip.flags_tree']:
+                    tmp_pkt.append(packet['_source']['layers']['ip']['ip.flags_tree']['ip.flags.rb'])
+                else:
+                    tmp_pkt.append(np.nan)
+                if 'ip.flags.df' in packet['_source']['layers']['ip']['ip.flags_tree']:
+                    tmp_pkt.append(packet['_source']['layers']['ip']['ip.flags_tree']['ip.flags.df'])
+                else:
+                    tmp_pkt.append(np.nan)
+                if 'ip.flags.mf' in packet['_source']['layers']['ip']['ip.flags_tree']:
+                    tmp_pkt.append(packet['_source']['layers']['ip']['ip.flags_tree']['ip.flags.mf'])
+                else:
+                    tmp_pkt.append(np.nan)
+        if 'tcp' in packet['_source']['layers']:
+            # Aggiungi flags
+            if 'tcp.flags.res' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
+                    tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.res'])
+            else:
+                    tmp_pkt.append(np.nan)
+            if 'tcp.flags.ae' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
+                    tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.ae'])
+            else:
+                    tmp_pkt.append(np.nan)
+            if 'tcp.flags.cwr' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
+                    tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.cwr'])
+            else:
+                    tmp_pkt.append(np.nan)
+            if 'tcp.flags.urg' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
+                    tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.urg'])
+            else:
+                    tmp_pkt.append(np.nan)
+            if 'tcp.flags.ack' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
+                    tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.ack'])
+            else:
+                    tmp_pkt.append(np.nan)
+            if 'tcp.flags.push' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
+                    tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.push'])
+            else:
+                    tmp_pkt.append(np.nan)
+            if 'tcp.flags.syn' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
+                    tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.syn'])
+            else:
+                    tmp_pkt.append(np.nan)
+            if 'tcp.flags.fin' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
+                    tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.fin'])
+            else:
+                    tmp_pkt.append(np.nan)
+        
+        fb=extract_binary_features(packet)
+        for elem in fb:
+            tmp_pkt.append(elem)
             
-                # Aggiungi flags
-                    if 'ip.flags.rb' in packet['_source']['layers']['ip']['ip.flags_tree']:
-                        tmp_pkt.append(packet['_source']['layers']['ip']['ip.flags_tree']['ip.flags.rb'])
-                    else:
-                        tmp_pkt.append(np.nan)
-                    if 'ip.flags.df' in packet['_source']['layers']['ip']['ip.flags_tree']:
-                        tmp_pkt.append(packet['_source']['layers']['ip']['ip.flags_tree']['ip.flags.df'])
-                    else:
-                        tmp_pkt.append(np.nan)
-                    if 'ip.flags.mf' in packet['_source']['layers']['ip']['ip.flags_tree']:
-                        tmp_pkt.append(packet['_source']['layers']['ip']['ip.flags_tree']['ip.flags.mf'])
-                    else:
-                        tmp_pkt.append(np.nan)
-            if 'tcp' in packet['_source']['layers']:
-                # Aggiungi flags
-                if 'tcp.flags.res' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
-                        tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.res'])
-                else:
-                        tmp_pkt.append(np.nan)
-                if 'tcp.flags.ae' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
-                        tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.ae'])
-                else:
-                        tmp_pkt.append(np.nan)
-                if 'tcp.flags.cwr' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
-                        tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.cwr'])
-                else:
-                        tmp_pkt.append(np.nan)
-                if 'tcp.flags.urg' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
-                        tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.urg'])
-                else:
-                        tmp_pkt.append(np.nan)
-                if 'tcp.flags.ack' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
-                        tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.ack'])
-                else:
-                        tmp_pkt.append(np.nan)
-                if 'tcp.flags.push' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
-                        tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.push'])
-                else:
-                        tmp_pkt.append(np.nan)
-                if 'tcp.flags.syn' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
-                        tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.syn'])
-                else:
-                        tmp_pkt.append(np.nan)
-                if 'tcp.flags.fin' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
-                        tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.fin'])
-                else:
-                        tmp_pkt.append(np.nan)
-            fb=extract_binary_features(packet)
-            for elem in fb:
-                tmp_pkt.append(elem)
-            
-            packets_values.append(tmp_pkt)
+        packets_values.append(tmp_pkt)
        
     return packets_values
 
