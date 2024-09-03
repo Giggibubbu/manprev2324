@@ -224,11 +224,50 @@ def clean_df(dataframe):
     dataframe['icmp.checksum.status'] = dataframe['icmp.checksum.status'].astype(float)
 
 
+def get_layers_fields(data):
+      layers_fields = {}
+      fields_types = {}
+      for packet in data:
+            for i in range(len(cs.interesting_layers)):
+                  
+                if cs.interesting_layers[i] in packet['_source']['layers'].keys():
+                      if cs.interesting_layers[i] not in layers_fields.keys():
+                            layers_fields[cs.interesting_layers[i]] = packet['_source']['layers'][cs.interesting_layers[i]].keys()
+                            for field in packet['_source']['layers'][cs.interesting_layers[i]]:
+                                  fields_types[field] = packet['_source']['layers'][cs.interesting_layers[i]][field].__class__.__name__
+                                  if fields_types[field] == 'dict' or fields_types[field] == 'list':
+                                        fields_types[field] = [fields_types[field], len(packet['_source']['layers'][cs.interesting_layers[i]][field])]
 
+
+      return [layers_fields, fields_types]
+
+
+def create_list_json(data):
+    packet_values = []
     
-
-
     
-
-
-    return dataframe
+    for packet in data:
+        tmp_pkt = []
+        tmp_pkt_col = []
+        for i in range(len(cs.interesting_layers)):
+            if cs.interesting_layers in packet['_source']['layers']:
+                for field in packet['_source']['layers'][cs.interesting_layers[i]]:
+                    
+                     
+            
+    
+      
+def extract_values_with_keys(data, parent_key='', result=None):
+    if result is None:
+        result = []
+    if isinstance(data, dict):
+        for key, value in data.items():
+            new_key = f"{parent_key}.{key}" if parent_key else key
+            extract_values_with_keys(value, new_key, result)
+    elif isinstance(data, list):
+        for index, item in enumerate(data):
+            new_key = f"{parent_key}[{index}]"
+            extract_values_with_keys(item, new_key, result)
+    else:
+        result.append((parent_key, data))
+    return result
