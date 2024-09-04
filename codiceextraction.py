@@ -90,9 +90,93 @@ selected_colums=['frame.frame.encap_type', 'frame.frame.time', 'frame.frame.time
 df_clean=df[selected_colums]
 
 
-
-
 import pandas as pd
+from sklearn.preprocessing import LabelEncoder
+import ipaddress
+
+def mac_to_int(mac):
+   
+    if pd.notnull(mac) and isinstance(mac, str):
+        return int(mac.replace(':', ''), 16)
+    return 0
+
+def ip_to_int(ip):
+   
+    if pd.notnull(ip) and isinstance(ip, str):
+        try:
+         
+            return int(ipaddress.ip_address(ip))
+        except ValueError:
+            return 0
+    return 0
+
+def hex_to_int(hex_str):
+
+    if pd.notnull(hex_str) and isinstance(hex_str, str):
+        try:
+            return int(hex_str, 16)  # Converte l'esadecimale in un intero
+        except ValueError:
+            return 0
+    return 0
+
+def convert(df):
+ 
+    df_copy = df.copy()
+
+    mac_columns = ['eth.src', 'eth.dst', 'ipv6.src_slaac_mac', 'ipv6.slaac_mac']
+    for col in mac_columns:
+        if col in df_copy.columns:
+            df_copy[col] = df_copy[col].apply(mac_to_int)
+
+
+    ip_columns = ['ipv6.src', 'ipv6.dst', 'ipv6.src_host', 'ipv6.dst_host', 'ipv6.host']
+    for col in ip_columns:
+        if col in df_copy.columns:
+            df_copy[col] = df_copy[col].apply(ip_to_int)
+
+ 
+    hex_columns = [col for col in df_copy.columns if 'raw' in col or 'hex' in col]
+    for col in hex_columns:
+        if col in df_copy.columns:
+            df_copy[col] = df_copy[col].apply(hex_to_int)
+
+
+    numeric_fields = df_copy.select_dtypes(include=['int64', 'float64']).columns
+
+ 
+    for field in numeric_fields:
+        df_copy[field] = pd.to_numeric(df_copy[field], errors='coerce')
+
+
+    categorical_fields = df_copy.select_dtypes(include=['object']).columns
+
+ 
+    label_encoder = LabelEncoder()
+    for field in categorical_fields:
+        df_copy[field] = label_encoder.fit_transform(df_copy[field].astype(str))
+
+
+    df_copy.fillna(0, inplace=True)
+
+    return df_copy
+
+
+df_ml_ready = convert(df)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'''import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 import ipaddress
 import re
@@ -142,7 +226,7 @@ for column in df.select_dtypes(include=['object']).columns:
             df.loc[:, column] = le.fit_transform(df[column])
         except:
             pass  
-print(df)
+print(df)'''
 
 
 
