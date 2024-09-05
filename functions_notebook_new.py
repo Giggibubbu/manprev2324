@@ -111,6 +111,33 @@ def convert(df):
     return df_copy
 
 
+def df_convert(dataframe):
+    toint = ["frame.frame.encap_type", "frame.frame.number", "frame.frame.len", "eth.eth.dst_tree.eth.dst.oui", "frame.frame.cap_len", "frame.frame.marked", "frame.frame.ignored", "eth.eth.dst_tree.eth.dst.lg_raw[0]", "eth.eth.dst_tree.eth.addr.oui", "eth.eth.dst_tree.eth.dst.lg", "eth.eth.dst_tree.eth.lg_raw[0]", "eth.eth.dst_tree.eth.lg", "eth.eth.dst_tree.eth.dst.ig_raw[0]", "eth.eth.dst_tree.eth.dst.ig", "eth.eth.dst_tree.eth.ig_raw[0]", "eth.eth.dst_tree.eth.ig", "eth.eth.src", "eth.eth.src_tree.eth.src.oui", "eth.eth.src_tree.eth.addr.oui", "eth.eth.src_tree.eth.src.lg_raw[0]", "eth.eth.src_tree.eth.src.lg", "eth.eth.src_tree.eth.lg_raw[0]", "eth.eth.src_tree.eth.lg", "eth.eth.src_tree.eth.src.ig_raw[0]", "eth.eth.src_tree.eth.src.ig", "eth.eth.src_tree.eth.ig_raw[0]", "eth.eth.src_tree.eth.ig"]
+    tohex = ["eth.eth.dst_raw[0]", "eth.eth.dst_tree.eth.dst_resolved_raw[0]", "eth.eth.dst_tree.eth.dst.oui_raw[0]", "eth.eth.dst_tree.eth.addr_raw[0]", "eth.eth.dst_tree.eth.addr.oui_raw[0]", "eth.eth.src_raw[0]", "eth.eth.src_tree.eth.src_resolved_raw[0]", "eth.eth.src_tree.eth.src.oui_raw[0]", "eth.eth.src_tree.eth.src.oui_resolved_raw[0]", "eth.eth.src_tree.eth.addr_raw[0]", "eth.eth.src_tree.eth.addr", "eth.eth.src_tree.eth.addr_resolved_raw[0]", "eth.eth.src_tree.eth.addr.oui_raw[0]", "eth.eth.src_tree.eth.addr.oui_resolved_raw[0]"]
+
+    mactohex = ["eth.eth.dst", "mac address", "eth.eth.dst_tree.eth.addr", "eth.eth.dst_tree.eth.addr_resolved_raw[0]"]
+    tofloat = ["frame.frame.time_epoch", "frame.frame.offset_shift", "frame.frame.time_delta", "frame.frame.time_delta_displayed", "frame.frame.time_relative"]
+
+    for field in toint:
+        dataframe[field] = dataframe[field].astype(int)
+    
+    for field in tohex:
+        dataframe[field] = dataframe[field].apply(lambda x : int(x, 16))
+    
+    for field in mactohex:
+        dataframe[field] = dataframe[field].str.replace(":", "", regex=False)
+        dataframe[field] = dataframe[field].apply(lambda x : int(x, 16))
+
+    for field in tofloat:
+        dataframe[field] = dataframe[field].astype(float)
+    
+    return dataframe
+
+
+
+
+
+
 
 
 
