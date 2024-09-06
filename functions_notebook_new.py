@@ -111,28 +111,57 @@ def convert(df):
     return df_copy
 
 
-def df_convert(dataframe):
-    toint = ["frame.frame.encap_type", "frame.frame.number", "frame.frame.len", "eth.eth.dst_tree.eth.dst.oui", "frame.frame.cap_len", "frame.frame.marked", "frame.frame.ignored", "eth.eth.dst_tree.eth.dst.lg_raw[0]", "eth.eth.dst_tree.eth.addr.oui", "eth.eth.dst_tree.eth.dst.lg", "eth.eth.dst_tree.eth.lg_raw[0]", "eth.eth.dst_tree.eth.lg", "eth.eth.dst_tree.eth.dst.ig_raw[0]", "eth.eth.dst_tree.eth.dst.ig", "eth.eth.dst_tree.eth.ig_raw[0]", "eth.eth.dst_tree.eth.ig", "eth.eth.src_tree.eth.src.oui", "eth.eth.src_tree.eth.addr.oui", "eth.eth.src_tree.eth.src.lg_raw[0]", "eth.eth.src_tree.eth.src.lg", "eth.eth.src_tree.eth.lg_raw[0]", "eth.eth.src_tree.eth.lg", "eth.eth.src_tree.eth.src.ig_raw[0]", "eth.eth.src_tree.eth.src.ig", "eth.eth.src_tree.eth.ig_raw[0]", "eth.eth.src_tree.eth.ig"]
-    tohex = ["eth.eth.dst_raw[0]", "eth.eth.dst_tree.eth.dst_resolved_raw[0]", "eth.eth.dst_tree.eth.dst.oui_raw[0]", "eth.eth.dst_tree.eth.addr_raw[0]", "eth.eth.dst_tree.eth.addr.oui_raw[0]", "eth.eth.src_raw[0]", "eth.eth.src_tree.eth.src_resolved_raw[0]", "eth.eth.src_tree.eth.src.oui_raw[0]", "eth.eth.src_tree.eth.src.oui_resolved_raw[0]", "eth.eth.src_tree.eth.addr_raw[0]", "eth.eth.src_tree.eth.addr_resolved_raw[0]", "eth.eth.src_tree.eth.addr.oui_raw[0]", "eth.eth.src_tree.eth.addr.oui_resolved_raw[0]"]
+import pandas as pd
 
-    mactohex = ["eth.eth.dst", "eth.eth.dst_tree.eth.addr", "eth.eth.dst_tree.eth.addr_resolved_raw[0]", "eth.eth.src", "eth.eth.src_tree.eth.addr"]
-    tofloat = ["frame.frame.time_epoch", "frame.frame.offset_shift", "frame.frame.time_delta", "frame.frame.time_delta_displayed", "frame.frame.time_relative"]
+def df_convert(dataframe,elementi):
+    # Elenco delle colonne che vogliamo convertire
+    toint = ["frame.frame.encap_type", "frame.frame.number", "frame.frame.len", "eth.eth.dst_tree.eth.dst.oui", 
+             "frame.frame.cap_len", "frame.frame.marked", "frame.frame.ignored", "eth.eth.dst_tree.eth.dst.lg_raw[0]", 
+             "eth.eth.dst_tree.eth.addr.oui", "eth.eth.dst_tree.eth.dst.lg", "eth.eth.dst_tree.eth.lg_raw[0]", 
+             "eth.eth.dst_tree.eth.lg", "eth.eth.dst_tree.eth.dst.ig_raw[0]", "eth.eth.dst_tree.eth.dst.ig", 
+             "eth.eth.dst_tree.eth.ig_raw[0]", "eth.eth.dst_tree.eth.ig", "eth.eth.src_tree.eth.src.oui", 
+             "eth.eth.src_tree.eth.addr.oui", "eth.eth.src_tree.eth.src.lg_raw[0]", "eth.eth.src_tree.eth.src.lg", 
+             "eth.eth.src_tree.eth.lg_raw[0]", "eth.eth.src_tree.eth.lg", "eth.eth.src_tree.eth.src.ig_raw[0]", 
+             "eth.eth.src_tree.eth.src.ig", "eth.eth.src_tree.eth.ig_raw[0]", "eth.eth.src_tree.eth.ig"]
+    
+    tohex = ["eth.eth.dst_raw[0]", "eth.eth.dst_tree.eth.dst_resolved_raw[0]", "eth.eth.dst_tree.eth.dst.oui_raw[0]", 
+             "eth.eth.dst_tree.eth.addr_raw[0]", "eth.eth.dst_tree.eth.addr.oui_raw[0]", "eth.eth.src_raw[0]", 
+             "eth.eth.src_tree.eth.src_resolved_raw[0]", "eth.eth.src_tree.eth.src.oui_raw[0]", 
+             "eth.eth.src_tree.eth.src.oui_resolved_raw[0]", "eth.eth.src_tree.eth.addr_raw[0]",  
+             "eth.eth.src_tree.eth.addr_resolved_raw[0]", "eth.eth.src_tree.eth.addr.oui_raw[0]", 
+             "eth.eth.src_tree.eth.addr.oui_resolved_raw[0]"]
 
+    mactohex = ["eth.eth.dst", "mac address", "eth.eth.dst_tree.eth.addr", "eth.eth.dst_tree.eth.addr_resolved_raw[0]","eth.eth.src_tree.eth.addr","eth.eth.src"]
+    
+    tofloat = ["frame.frame.time_epoch", "frame.frame.offset_shift", "frame.frame.time_delta", 
+               "frame.frame.time_delta_displayed", "frame.frame.time_relative"]
+
+    # Conversione in int
     for field in toint:
-        print(field)
-        dataframe[field] = dataframe[field].astype(int)
-    
-    for field in tohex:
-        dataframe[field] = dataframe[field].apply(lambda x : int(x, 16))
-    
-    for field in mactohex:
-        dataframe[field] = dataframe[field].str.replace(":", "", regex=False).apply(lambda x : int(x, 16))
-        # dataframe[field] = dataframe[field].apply(lambda x : int(x, 16))
+        if field in dataframe.columns and field in elementi:
+            dataframe.loc[:, field] = pd.to_numeric(dataframe[field], errors='coerce').fillna(0).astype(int)
 
+    # Conversione degli esadecimali
+    for field in tohex:
+        if field in dataframe.columns and field in elementi:
+            dataframe.loc[:, field] = dataframe[field].apply(lambda x: int(x, 16) if pd.notnull(x) and isinstance(x, str) else 0)
+
+    # Conversione degli indirizzi MAC in esadecimale
+    for field in mactohex:
+        if field in dataframe.columns and field in elementi:
+            # Rimuove i due punti dagli indirizzi MAC e converte
+            dataframe.loc[:, field] = dataframe[field].str.replace(":", "", regex=False)
+            dataframe.loc[:, field] = dataframe[field].apply(lambda x: int(x, 16) if pd.notnull(x) and isinstance(x, str) else 0)
+
+
+
+    # Conversione in float
     for field in tofloat:
-        dataframe[field] = dataframe[field].astype(float)
-    
+        if field in dataframe.columns and field in elementi:
+            dataframe.loc[:, field] = pd.to_numeric(dataframe[field], errors='coerce').astype(float)
+
     return dataframe
+
 
 
 
