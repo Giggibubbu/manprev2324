@@ -160,6 +160,16 @@ def df_convert2(dataframe, elementi):
     
     return dataframe
 
+def calcolo_features_binarie(df):
+    # CALCOLO FEATURES BINARIE
+    df['protocols_split'] = df['frame.frame.protocols'].str.split(':')
+
+    protocols = set([proto for sublist in df['protocols_split'] for proto in sublist])
+
+    for proto in protocols:
+        df[proto] = df['protocols_split'].apply(lambda x: 1 if proto in x else 0)
+
+    df.drop(columns=['protocols_split', 'ethertype'], inplace=True)
 
 
 
