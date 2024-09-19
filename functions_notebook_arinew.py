@@ -130,21 +130,22 @@ def calcola_features(dataframe, _time_groupby=5):
     df_aggregation['modbus_request_count'] = dataframe[(dataframe['modbus.modbus.func_code'] == 3) & (dataframe['frame.frame.len'] == 66)].groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['frame.frame.len'].apply(lambda x: x.count()).reset_index(name='modbus_request_count')['modbus_request_count']
     df_aggregation['modb_req_resp_fraction'] = df_aggregation['modbus_request_count']/df_aggregation['modbus_request_count']
 
-    # Conversione del campo icmp.icmp.code
-    if 'icmp' in dataframe.columns:
-        dataframe['icmp.icmp.code'].fillna('99', inplace=True)
+    
+    if 'icmp.icmp.code' in dataframe.columns:
+        dataframe['icmp.icmp.code'].fillna(99, inplace=True)
         dataframe['icmp.icmp.code'] = dataframe['icmp.icmp.code'].astype(int)
-        df_aggregation['icmp_request_count'] = dataframe[(dataframe['icmp.icmp.code'] == 0)].groupby(pd.Grouper(key='frame.frame.time_utc', freq='5s'))['icmp.icmp.code'].count().reset_index(name='icmp_request_count')['icmp_request_count']
-        df_aggregation['icmp_response_count'] = dataframe[(dataframe['icmp.icmp.code'] == 8)].groupby(pd.Grouper(key='frame.frame.time_utc', freq='5s'))['icmp.icmp.code'].count().reset_index(name='icmp_response_count')['icmp_response_count']
-        if (df_aggregation['icmp_response_count'] == 0).any() or (df_aggregation['icmp_response_count'] == np.nan).any():
+        icmp_requests = dataframe[dataframe['icmp.icmp.code'] == 0].groupby(pd.Grouper(key='frame.frame.time_utc', freq='5s'))['icmp.icmp.code'].count().reset_index(name='icmp_request_count')
+        icmp_responses = dataframe[dataframe['icmp.icmp.code'] == 8].groupby(pd.Grouper(key='frame.frame.time_utc', freq='5s'))['icmp.icmp.code'].count().reset_index(name='icmp_response_count')
+        df_aggregation['icmp_request_count'] = icmp_requests.get('icmp_request_count', pd.Series([0]))
+        df_aggregation['icmp_response_count'] = icmp_responses.get('icmp_response_count', pd.Series([0]))
+        if df_aggregation['icmp_response_count'].isna().any() or (df_aggregation['icmp_response_count'] == 0).all():
             df_aggregation['icmp_response_count'] = 0
             df_aggregation['icmp_req_resp_fraction'] = 0
         else:
-            df_aggregation['icmp_req_resp_fraction'] = df_aggregation['icmp_request_count']/df_aggregation['icmp_response_count']
+            df_aggregation['icmp_req_resp_fraction'] = df_aggregation['icmp_request_count'] / df_aggregation['icmp_response_count']
     else:
         df_aggregation['icmp_request_count'] = 0
         df_aggregation['icmp_response_count'] = 0
         df_aggregation['icmp_req_resp_fraction'] = 0
-
 
     return df_aggregation
