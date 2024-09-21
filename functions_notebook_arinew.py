@@ -136,6 +136,7 @@ def calcola_features(dataframe, _time_groupby=5):
         dataframe['icmp.icmp.code'] = dataframe['icmp.icmp.code'].astype(int)
         df_aggregation['icmp_request_count'] = dataframe[dataframe['icmp.icmp.code'] == 0].groupby(pd.Grouper(key='frame.frame.time_utc', freq='5s'))['icmp.icmp.code'].count().reset_index(name='icmp_request_count')['icmp_request_count']
         df_aggregation['icmp_response_count'] = dataframe[dataframe['icmp.icmp.code'] == 8].groupby(pd.Grouper(key='frame.frame.time_utc', freq='5s'))['icmp.icmp.code'].count().reset_index(name='icmp_response_count')['icmp_response_count']
+        df_aggregation['icmp_request_count'].fillna(0, inplace=True)
         if df_aggregation['icmp_response_count'].isna().any():
             df_aggregation['icmp_response_count'].fillna(0, inplace=True)
             df_aggregation['icmp_req_resp_fraction'] = df_aggregation[(df_aggregation['icmp_response_count'] != 0)]['icmp_request_count']/df_aggregation[df_aggregation['icmp_response_count'] !=0]['icmp_response_count']
