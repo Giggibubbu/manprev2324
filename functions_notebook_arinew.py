@@ -11,7 +11,10 @@ def calcola_features(dataframe, _time_groupby=5):
     # Numero di eth, ip, arp, tcp, udp, tcp, mbtcp per raggruppamento nella cattura clean
     df_aggregation['eth_count']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['eth'].apply(lambda x: (x==1).sum()).reset_index(name='count')['count']
     df_aggregation['ip_count']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['ip'].apply(lambda x: (x==1).sum()).reset_index(name='count')['count']
-    df_aggregation['arp_count']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['arp'].apply(lambda x: (x==1).sum()).reset_index(name='count')['count']
+    if 'arp' in dataframe.columns:
+        df_aggregation['arp_count']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['arp'].apply(lambda x: (x==1).sum()).reset_index(name='count')['count']
+    else:
+        df_aggregation['arp_count']=0
     if 'udp' in dataframe.columns:
         df_aggregation['udp_count']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['udp'].apply(lambda x: (x==1).sum()).reset_index(name='count')['count']
     else:
