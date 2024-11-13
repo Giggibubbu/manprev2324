@@ -1,273 +1,243 @@
-import numpy as np
-import json as json
-import costants as cs
+import json
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 import pandas as pd
-import ipaddress as ip
+import numpy as np
+import ipaddress
+from scipy.stats import entropy
+import pickle
+import os
+import random
 
-def extract_binary_features(packet):
-    #  protocolli di interesse
-    protocol_mapping = ['eth', 'arp', 'icmp', 'ip', 'tcp', 'udp', 'mbtcp']
-
-    # Estrai dal pacchetto
-    protocols_present = packet['_source']['layers'].keys()
-
-    # Crea la rappresentazione binaria come lista di 1/0
-    binary_features = ['1' if protocol in protocols_present else '0' for protocol in protocol_mapping]
-    
-    return binary_features
-
-def open_convert_capture(path):
-    capture = open(path)
-    capture_data = json.load(capture)
-    capture.close()
-    return capture_data
-
-def create_array_values(data):
-    packets_values = []
-
-    for packet in data:
-        
-        
-        tmp_pkt = []
-        tmp_pkt.append(packet['_source']['layers']['frame']['frame.time_epoch'])
-    
-        for i in range(len(cs.interesting_layers)):
-            if cs.interesting_layers[i] in packet['_source']['layers']:
-                for field in cs.interesting_layer_fields[i]:
-                    if field in packet['_source']['layers'][cs.interesting_layers[i]]:
-                        tmp_pkt.append(packet['_source']['layers'][cs.interesting_layers[i]][field])
-                    else:
-                        tmp_pkt.append(np.nan)
-            else:
-                for field in cs.interesting_layer_fields[i]:
-                    tmp_pkt.append(np.nan)
-
-        if 'ip' in packet['_source']['layers']:
-        
-            # Aggiungi flags
-                if 'ip.flags.rb' in packet['_source']['layers']['ip']['ip.flags_tree']:
-                    tmp_pkt.append(packet['_source']['layers']['ip']['ip.flags_tree']['ip.flags.rb'])
-                else:
-                    tmp_pkt.append(np.nan)
-                if 'ip.flags.df' in packet['_source']['layers']['ip']['ip.flags_tree']:
-                    tmp_pkt.append(packet['_source']['layers']['ip']['ip.flags_tree']['ip.flags.df'])
-                else:
-                    tmp_pkt.append(np.nan)
-                if 'ip.flags.mf' in packet['_source']['layers']['ip']['ip.flags_tree']:
-                    tmp_pkt.append(packet['_source']['layers']['ip']['ip.flags_tree']['ip.flags.mf'])
-                else:
-                    tmp_pkt.append(np.nan)
-        if 'tcp' in packet['_source']['layers']:
-            # Aggiungi flags
-            if 'tcp.flags.res' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
-                    tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.res'])
-            else:
-                    tmp_pkt.append(np.nan)
-            if 'tcp.flags.ae' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
-                    tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.ae'])
-            else:
-                    tmp_pkt.append(np.nan)
-            if 'tcp.flags.cwr' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
-                    tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.cwr'])
-            else:
-                    tmp_pkt.append(np.nan)
-            if 'tcp.flags.urg' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
-                    tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.urg'])
-            else:
-                    tmp_pkt.append(np.nan)
-            if 'tcp.flags.ack' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
-                    tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.ack'])
-            else:
-                    tmp_pkt.append(np.nan)
-            if 'tcp.flags.push' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
-                    tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.push'])
-            else:
-                    tmp_pkt.append(np.nan)
-            if 'tcp.flags.syn' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
-                    tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.syn'])
-            else:
-                    tmp_pkt.append(np.nan)
-            if 'tcp.flags.fin' in packet['_source']['layers']['tcp']['tcp.flags_tree']:
-                    tmp_pkt.append(packet['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.fin'])
-            else:
-                    tmp_pkt.append(np.nan)
-        
-        fb=extract_binary_features(packet)
-        for elem in fb:
-            tmp_pkt.append(elem)
-            
-        packets_values.append(tmp_pkt)
-       
-    return packets_values
-
-def clean_df(dataframe):
-    # Conversione del MAC Address da esadecimale a decimale
-    # flags_ tutti nulli//
-    # ip.checksum_status tutti nulli//
-    # arp tutti null//
-    # icmp tutti nulli (da verificare)//
-    # tcp.checksum_status tutti null
-    # eliminare le colonne che non servono piu alla fine e inserire i campi binari e vedere il numero di feature
-    dataframe['eth.dst_cleaned'] = dataframe['eth.dst'].str.replace(":", "", regex=False)
-    dataframe['eth.dst_int'] = dataframe['eth.dst_cleaned'].apply(lambda x : int(x, 16))
-    dataframe['eth.src_cleaned'] = dataframe['eth.src'].str.replace(":", "", regex=False)
-    dataframe['eth.src_int'] = dataframe['eth.src_cleaned'].apply(lambda x : int(x, 16))
-    dataframe['eth.type'] = dataframe['eth.type'].apply(
-        lambda x: int(x, 16) if pd.notnull(x) and isinstance(x, str) else np.nan
-    )
-    dataframe['eth.len'] = dataframe['eth.len'].astype(float)
-    dataframe.drop(['eth.dst_cleaned', 'eth.dst', 'eth.src_cleaned', 'eth.src'], axis=1, inplace=True)
-
-    dataframe['ip.version'] = dataframe['ip.version'].astype(float)
-    dataframe['ip.hdr_len'] = dataframe['ip.hdr_len'].astype(float)
-    dataframe['ip.src'].replace({np.nan: '169.254.0.0'}, inplace=True)
-    dataframe['ip.dst'].replace({np.nan: '169.254.0.0'}, inplace=True)
-    dataframe['ip.src'] = dataframe['ip.src'].apply(lambda x : int(ip.IPv4Address(x)))
-    dataframe['ip.dst'] = dataframe['ip.dst'].apply(lambda x : int(ip.IPv4Address(x)))
-    dataframe['ip.dsfield'] = dataframe['ip.dsfield'].apply(
-        lambda x: int(x, 16) if pd.notnull(x) and isinstance(x, str) else np.nan
-    )
-    '''df_clean_30m['ip.dsfield_dscp'] = df_clean_30m['ip.dsfield_dscp'].astype(float)
-    df_clean_30m['ip.dsfield_ecn'] = df_clean_30m['ip.dsfield_ecn'].astype(float)'''
-    dataframe['ip.len'] = pd.to_numeric(dataframe['ip.len'], errors='coerce').astype('Int64')
-    dataframe['ip.id'] = dataframe['ip.id'].apply(
-        lambda x: int(x, 16) if pd.notnull(x) and isinstance(x, str) and len(x.strip()) > 0 else np.nan
-    )
-
-    dataframe['ip.flags'] = dataframe['ip.flags'].apply(
-        lambda x: int(x, 16) if pd.notnull(x) and isinstance(x, str) and len(x.strip()) > 0 else np.nan
-    )
-    '''df_clean_30m['ip.frag_offset'] = df_clean_30m['ip.frag_offset'].astype(float)'''
-    dataframe['ip.ttl'].fillna(0, inplace=True)
-
-    # Convertire in intero
-    dataframe['ip.ttl'] = dataframe['ip.ttl'].astype(int)
-    dataframe['ip.proto'].fillna(0, inplace=True)
-
-    # Ora puoi convertire la colonna 'ip.proto' in intero
-    dataframe['ip.proto'] = dataframe['ip.proto'].astype(int)
-    dataframe['ip.checksum'] = dataframe['ip.checksum'].apply(
-        lambda x: int(x, 16) if pd.notnull(x) and isinstance(x, str) and len(x.strip()) > 0 else np.nan
-    )
-    dataframe.loc[dataframe['tcp.srcport'] == '0']
-    dataframe['tcp.srcport'].replace({np.nan: '0'}, inplace=True)
-    dataframe['tcp.dstport'].replace({np.nan: '0'}, inplace=True)
-    dataframe['tcp.srcport'] = dataframe['tcp.srcport'].apply(lambda x : int(x))
-    dataframe['tcp.dstport'] = dataframe['tcp.dstport'].apply(lambda x : int(x))
-    dataframe['tcp.stream'] = dataframe['tcp.stream'].astype(float)
-    dataframe['tcp.len'] = dataframe['tcp.len'].astype(float)
-    dataframe['tcp.seq'] = dataframe['tcp.seq'].astype(float)
-    dataframe['tcp.nxtseq'] = dataframe['tcp.nxtseq'].astype(float)
-    dataframe['tcp.ack'] = dataframe['tcp.ack'].astype(float)
-    dataframe['tcp.hdr_len'] = dataframe['tcp.hdr_len'].astype(float)
-    dataframe['tcp.window_size_value'] = dataframe['tcp.window_size_value'].astype(float)
-    dataframe['tcp.window_size'] = dataframe['tcp.window_size'].astype(float)
-    '''dataframe['tcp.window_size_scalefactor'] = dataframe['tcp.window_size_scalefactor'].astype(float)'''
-    dataframe['tcp.urgent_pointer'] = dataframe['tcp.urgent_pointer'].astype(float)
-    dataframe['tcp.flags'] = dataframe['tcp.flags'].apply(
-        lambda x: int(x, 16) if pd.notnull(x) and isinstance(x, str) and len(x.strip()) > 0 else np.nan
-    )
-
-    # Stesso approccio per 'tcp.checksum'
-    dataframe['tcp.checksum'] = dataframe['tcp.checksum'].apply(
-        lambda x: int(x, 16) if pd.notnull(x) and isinstance(x, str) and len(x.strip()) > 0 else np.nan
-    )
-
-
-    dataframe['mbtcp.trans_id'] = dataframe['mbtcp.trans_id'].astype(float)
-    dataframe['mbtcp.prot_id'] = dataframe['mbtcp.prot_id'].astype(float)
-    dataframe['mbtcp.len'] = dataframe['mbtcp.len'].astype(float)
-    dataframe['mbtcp.unit_id'] = dataframe['mbtcp.unit_id'].astype(float)
-
-    dataframe['arp.hw.type'] = dataframe['arp.hw.type'].astype(float)
-    dataframe['arp.proto.type'] = dataframe['arp.proto.type'].apply(
-        lambda x: int(x, 16) if pd.notnull(x) and isinstance(x, str) and len(x.strip()) > 0 else np.nan
-    )
-
-
-
-    dataframe['arp.hw.size'] = dataframe['arp.hw.size'].astype(float)
-    dataframe['arp.proto.size'] = dataframe['arp.proto.size'].astype(float)
-    dataframe['ip.checksum.status'] = dataframe['ip.checksum.status'].astype(float)
-    dataframe['tcp.checksum.status'] = dataframe['tcp.checksum.status'].astype(float)
-    dataframe['udp.srcport'] = dataframe['udp.srcport'].astype(float)
-    dataframe['udp.dstport'] = dataframe['udp.dstport'].astype(float)
-    dataframe['udp.port'] = dataframe['udp.port'].astype(float)
-    dataframe['udp.length'] = dataframe['udp.length'].astype(float)
-    dataframe['udp.checksum'] = dataframe['udp.checksum'].apply(
-        lambda x: int(x, 16) if pd.notnull(x) and isinstance(x, str) and len(x.strip()) > 0 else np.nan
-    )
-    dataframe['ip.flags.rb'] = dataframe['ip.flags.rb'].astype(float)
-    dataframe['ip.flags.df'] = dataframe['ip.flags.df'].astype(float)
-    dataframe['ip.flags.mf'] = dataframe['ip.flags.mf'].astype(float)
-    dataframe['tcp.flags.res'] = dataframe['tcp.flags.res'].astype(float)
-    dataframe['tcp.flags.ae'] = dataframe['tcp.flags.ae'].astype(float)
-    dataframe['tcp.flags.cwr'] = dataframe['tcp.flags.cwr'].astype(float)
-    dataframe['tcp.flags.urg'] = dataframe['tcp.flags.urg'].astype(float)
-    dataframe['tcp.flags.ack'] = dataframe['tcp.flags.ack'].astype(float)
-    dataframe['tcp.flags.push'] = dataframe['tcp.flags.push'].astype(float)
-    dataframe['tcp.flags.syn'] = dataframe['tcp.flags.syn'].astype(float)
-    dataframe['tcp.flags.fin'] = dataframe['tcp.flags.fin'].astype(float)
-    dataframe['eth'] = dataframe['eth'].astype(float)
-    dataframe['arp'] = dataframe['arp'].astype(float)
-    dataframe['icmp'] = dataframe['icmp'].astype(float)
-    dataframe['ip'] = dataframe['ip'].astype(float)
-    dataframe['tcp'] = dataframe['tcp'].astype(float)
-    dataframe['udp'] = dataframe['udp'].astype(float)
-    dataframe['mbtcp'] = dataframe['mbtcp'].astype(float)
-
-    dataframe['icmp.type'] = dataframe['icmp.type'].astype(float)
-    dataframe['icmp.code'] = dataframe['icmp.code'].astype(float)
-    dataframe['icmp.checksum'] = dataframe['icmp.checksum'].apply(
-        lambda x: int(x, 16) if pd.notnull(x) and isinstance(x, str) and len(x.strip()) > 0 else np.nan
-    )
-    dataframe['icmp.checksum.status'] = dataframe['icmp.checksum.status'].astype(float)
-
-
-def get_layers_fields(data):
-      layers_fields = {}
-      fields_types = {}
-      for packet in data:
-            for i in range(len(cs.interesting_layers)):
-                  
-                if cs.interesting_layers[i] in packet['_source']['layers'].keys():
-                      if cs.interesting_layers[i] not in layers_fields.keys():
-                            layers_fields[cs.interesting_layers[i]] = packet['_source']['layers'][cs.interesting_layers[i]].keys()
-                            for field in packet['_source']['layers'][cs.interesting_layers[i]]:
-                                  fields_types[field] = packet['_source']['layers'][cs.interesting_layers[i]][field].__class__.__name__
-                                  if fields_types[field] == 'dict' or fields_types[field] == 'list':
-                                        fields_types[field] = [fields_types[field], len(packet['_source']['layers'][cs.interesting_layers[i]][field])]
-
-
-      return [layers_fields, fields_types]
-
-
-def create_list_json(data):
-    packet_values = []
-    
-    
-    for packet in data:
-        tmp_pkt = []
-        tmp_pkt_col = []
-        for i in range(len(cs.interesting_layers)):
-            if cs.interesting_layers in packet['_source']['layers']:
-                for field in packet['_source']['layers'][cs.interesting_layers[i]]:
-                    
-                     
-            
-    
-      
-def extract_values_with_keys(data, parent_key='', result=None):
-    if result is None:
-        result = []
-    if isinstance(data, dict):
-        for key, value in data.items():
-            new_key = f"{parent_key}.{key}" if parent_key else key
-            extract_values_with_keys(value, new_key, result)
-    elif isinstance(data, list):
-        for index, item in enumerate(data):
-            new_key = f"{parent_key}[{index}]"
-            extract_values_with_keys(item, new_key, result)
+def init_load_rstate():
+    if not os.path.exists("./randomstate_array.pkl"):
+        randomstate_array = [random.getrandbits(32) for randnr in range(10)]
+        print(randomstate_array)
+        with open("./randomstate_array.pkl", "wb") as file:
+            pickle.dump(randomstate_array, file)
+        return randomstate_array
     else:
-        result.append((parent_key, data))
-    return result
+        with open("./randomstate_array.pkl", "rb") as file:
+            randomstate_array = pickle.load(file)
+        return randomstate_array
+
+def load_packets_from_file(file_path):
+    with open(file_path, 'rb') as file:
+        data = json.load(file)
+    return data
+
+def flatten_dict(d, parent_key=''):
+    items = []
+    if isinstance(d, dict):
+        for k, v in d.items():
+            new_key = f"{parent_key}.{k}" if parent_key else k
+            if isinstance(v, dict):
+                items.extend(flatten_dict(v, new_key).items())
+            elif isinstance(v, list):
+                for i, item in enumerate(v):
+                    if isinstance(item, dict):
+                        items.extend(flatten_dict(item, f"{new_key}[{i}]").items())
+                    elif isinstance(item, list):
+                        for j, sub_item in enumerate(item):
+                            items.extend(flatten_dict({f"{new_key}[{i}][{j}]": sub_item}, new_key).items())
+                    else:
+                        items.append((f"{new_key}[{i}]", item))
+            else:
+                items.append((new_key, v))
+    else:
+        items.append((parent_key, d))
+    return dict(items)
+
+def extract_features_from_packets(packets, levels_of_interest):
+    all_features = []
+    
+    for packet in packets:
+        features = {}
+        layers = packet.get('_source', {}).get('layers', {})
+        for layer_name, layer_content in layers.items():
+            if layer_name in levels_of_interest:
+                features.update(flatten_dict(layer_content, layer_name))
+        
+        all_features.append(features)
+    
+    return all_features
+
+def calcolo_features_binarie(df):
+    # CALCOLO FEATURES BINARIE
+    df['protocols_split'] = df['frame.frame.protocols'].str.split(':')
+
+    protocols = set([proto for sublist in df['protocols_split'] for proto in sublist])
+
+    for proto in protocols:
+        df[proto] = df['protocols_split'].apply(lambda x: 1 if proto in x else 0)
+
+    df.drop(columns=['protocols_split', 'ethertype'], inplace=True)
+
+def calcola_features(dataframe, _time_groupby=1):
+    dataframe['frame.frame.time_utc'] = pd.to_datetime(dataframe['frame.frame.time_utc'], unit='s')
+    df_aggregation = pd.DataFrame()
+
+    # Numero di eth, ip, arp, tcp, udp, tcp, mbtcp per raggruppamento nella cattura clean
+    df_aggregation['eth_count']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['eth'].apply(lambda x: (x==1).sum()).reset_index(name='count')['count']
+    df_aggregation['ip_count']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['ip'].apply(lambda x: (x==1).sum()).reset_index(name='count')['count']
+    if 'arp' in dataframe.columns:
+        df_aggregation['arp_count']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['arp'].apply(lambda x: (x==1).sum()).reset_index(name='count')['count']
+    else:
+        df_aggregation['arp_count']=0
+    if 'udp' in dataframe.columns:
+        df_aggregation['udp_count']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['udp'].apply(lambda x: (x==1).sum()).reset_index(name='count')['count']
+    else:
+        df_aggregation['udp_count']=0
+    df_aggregation['tcp_count']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['tcp'].apply(lambda x: (x==1).sum()).reset_index(name='count')['count']
+    df_aggregation['mbtcp_count']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['mbtcp'].apply(lambda x: (x==1).sum()).reset_index(name='count')['count']
+    if 'icmp' in dataframe.columns:
+        df_aggregation['icmp_count']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['icmp'].apply(lambda x: (x==1).sum()).reset_index(name='count')['count']
+    else:
+        df_aggregation['icmp_count']=0
+    
+    # Numero di pacchetti per cattura
+    df_aggregation['pkt_count']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['frame.frame.time_utc'].count().reset_index(name='pkt_count')['pkt_count']
+    df_aggregation['per_eth_count'] = df_aggregation['eth_count']/df_aggregation['pkt_count']
+    df_aggregation['per_ip_count'] = df_aggregation['ip_count']/df_aggregation['pkt_count']
+    df_aggregation['per_icmp_count'] = df_aggregation['icmp_count']/df_aggregation['pkt_count']
+    df_aggregation['per_arp_count'] = df_aggregation['arp_count']/df_aggregation['pkt_count']
+    df_aggregation['per_udp_count'] = df_aggregation['udp_count']/df_aggregation['pkt_count']
+    df_aggregation['per_tcp_count'] = df_aggregation['tcp_count']/df_aggregation['pkt_count']
+    df_aggregation['per_mbtcp_count'] = df_aggregation['mbtcp_count']/df_aggregation['pkt_count']
+
+    # Conversione dei flags del tcp
+    # SYN
+    dataframe['tcp.tcp.flags_tree.tcp.flags.syn'].fillna('0', inplace=True)
+    dataframe['tcp.tcp.flags_tree.tcp.flags.syn'] = dataframe['tcp.tcp.flags_tree.tcp.flags.syn'].astype(int)
+    # ACK
+    dataframe['tcp.tcp.flags_tree.tcp.flags.ack'].fillna('0', inplace=True)
+    dataframe['tcp.tcp.flags_tree.tcp.flags.ack'] = dataframe['tcp.tcp.flags_tree.tcp.flags.ack'].astype(int)
+
+    # Aggiunta colonne tcp flags aggregate per raggruppamento
+    df_aggregation['tcp_syn_count']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['tcp.tcp.flags_tree.tcp.flags.syn'].apply(lambda x: (x==1).sum()).reset_index(name='count')['count']
+    df_aggregation['tcp_ack_count']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['tcp.tcp.flags_tree.tcp.flags.ack'].apply(lambda x: (x==1).sum()).reset_index(name='count')['count']
+    df_aggregation['tcp_synack_fraction'] = np.where(df_aggregation['tcp_ack_count'] != 0, df_aggregation['tcp_syn_count'] / df_aggregation['tcp_ack_count'], 0)
+
+
+    # Calcolo dell'inter arrival time
+    dataframe['inter.packet_arrival_time'] = dataframe['frame.frame.time_utc'].diff()
+
+    # Calcolo delle features aggregate su inter-arrival-time
+    df_aggregation['ipat_std']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['inter.packet_arrival_time'].apply(lambda x: x.std()).reset_index(name='count')['count']
+    df_aggregation['ipat_mode']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['inter.packet_arrival_time'].apply(lambda x: x.mode()).reset_index(name='count')['count']
+    df_aggregation['ipat_max']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['inter.packet_arrival_time'].apply(lambda x: x.max()).reset_index(name='count')['count']
+    df_aggregation['ipat_min']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['inter.packet_arrival_time'].apply(lambda x: x.min()).reset_index(name='count')['count']
+    df_aggregation['ipat_entropy']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['inter.packet_arrival_time'].apply(lambda x: entropy(x.value_counts()/len(x))).reset_index(name='count')['count']
+
+    # Sostituzione dei NaN con un valore relativo a indirizzo di rete che non viene mai utilizzato nel dataset e conversione dell'ip src in intero
+    dataframe['ip.ip.src'].fillna('169.254.0.0', inplace=True)
+    dataframe['ip.ip.src_asint'] = dataframe['ip.ip.src'].apply(lambda x: int(ipaddress.IPv4Address(x.strip())))
+
+    # Calcolo delle features aggregate su ip.ip.src
+    df_aggregation['ip_src_std']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['ip.ip.src_asint'].apply(lambda x: x.std()).reset_index(name='count')['count']
+    df_aggregation['ip_src_mode']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['ip.ip.src_asint'].apply(lambda x: x.mode()).reset_index(name='count')['count']
+    df_aggregation['ip_src_entropy']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['ip.ip.src_asint'].apply(lambda x: entropy(x.value_counts()/len(x))).reset_index(name='count')['count']
+
+    # Sostituzione dei NaN con un valore relativo a indirizzo di rete che non viene mai utilizzato nel dataset e conversione dell'ip dst in intero
+    dataframe['ip.ip.dst'].fillna('169.254.0.0', inplace=True)
+    dataframe['ip.ip.dst_asint'] = dataframe['ip.ip.dst'].apply(lambda x: int(ipaddress.IPv4Address(x.strip())))
+
+    # Calcolo delle features aggregate su ip.ip.dst
+    df_aggregation['ip_dst_std']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['ip.ip.dst_asint'].apply(lambda x: x.std()).reset_index(name='count')['count']
+    df_aggregation['ip_dst_mode']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['ip.ip.dst_asint'].apply(lambda x: x.mode()).reset_index(name='count')['count']
+    df_aggregation['ip_dst_entropy']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['ip.ip.dst_asint'].apply(lambda x: entropy(x.value_counts()/len(x))).reset_index(name='count')['count']
+
+    # Sostituzione dei NaN con un valore relativo a una porta mai utilizzata e conversione della colonna tcp.tcp.dstport in intero
+    dataframe['tcp.tcp.dstport'].fillna('0', inplace=True)
+    dataframe['tcp.tcp.dstport_asint'] = dataframe['tcp.tcp.dstport'].apply(lambda x: int(x))
+
+    # Calcolo delle features aggregate su tcp.tcp.dst
+    df_aggregation['tcp_dstport_std']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['tcp.tcp.dstport_asint'].apply(lambda x: x.std()).reset_index(name='count')['count']
+    df_aggregation['tcp_dstport_mode']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['tcp.tcp.dstport_asint'].apply(lambda x: x.mode()).reset_index(name='count')['count']
+    df_aggregation['tcp_dstport_entropy']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['tcp.tcp.dstport_asint'].apply(lambda x: entropy(x.value_counts()/len(x))).reset_index(name='count')['count']
+    df_aggregation['tcp_dstport_mbtcp']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['tcp.tcp.dstport_asint'].apply(lambda x: (x==502).sum()).reset_index(name='count')['count']
+
+    # Sostituzione dei NaN con un valore relativo a una porta mai utilizzata e conversione della colonna tcp.tcp.srcport in intero
+    dataframe['tcp.tcp.srcport'].fillna('0', inplace=True)
+    dataframe['tcp.tcp.srcport_asint'] = dataframe['tcp.tcp.srcport'].apply(lambda x: int(x))
+
+    # Calcolo delle features aggregate su tcp.tcp.src
+    df_aggregation['tcp_srcport_std']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['tcp.tcp.srcport_asint'].apply(lambda x: x.std()).reset_index(name='count')['count']
+    df_aggregation['tcp_srcport_mode']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['tcp.tcp.srcport_asint'].apply(lambda x: x.mode()).reset_index(name='count')['count']
+    df_aggregation['tcp_srcport_entropy']=dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['tcp.tcp.srcport_asint'].apply(lambda x: entropy(x.value_counts()/len(x))).reset_index(name='count')['count']
+
+    # CALCOLA NUMERO DI PACCHETTI CON STESSO IP DI DESTINAZIONE, MA GLI IP DI DESTINAZIONE POSSONO ESSERE DIVERSI, QUINDI IL DATAFRAME AVRA' PIù RIGHE
+    df_cc_1 = dataframe.groupby([pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'), 'ip.ip.dst_asint']).size().reset_index(name='num_unique_ipdst')
+    df_aggregation['maxnum_unique_ipdst'] = df_cc_1.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['num_unique_ipdst'].max().reset_index(name='maxnum_unique_ipdst')['maxnum_unique_ipdst']
+    df_aggregation['minnum_unique_ipdst'] = df_cc_1.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['num_unique_ipdst'].min().reset_index(name='minnum_unique_ipdst')['minnum_unique_ipdst']
+    df_aggregation['modenum_unique_ipdst'] = df_cc_1.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['num_unique_ipdst'].apply(lambda x: x.mode()).reset_index(name='modenum_unique_ipdst')['modenum_unique_ipdst']
+    df_aggregation['stdnum_unique_ipdst'] = df_cc_1.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['num_unique_ipdst'].apply(lambda x: x.std()).reset_index(name='stdnum_unique_ipdst')['stdnum_unique_ipdst']
+    df_aggregation['entropynum_unique_ipdst'] = df_cc_1.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['num_unique_ipdst'].apply(lambda x: entropy(x.value_counts()/len(x))).reset_index(name='entropynum_unique_ipdst')['entropynum_unique_ipdst']
+
+    # Numero di ip sorgenti/destinazione univoci nel raggruppamento
+    df_aggregation['num_unique_ipsrc'] = dataframe.groupby([pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s')])['ip.ip.src'].nunique().reset_index(name='num_unique_ipsrc')['num_unique_ipsrc']
+    df_aggregation['num_unique_ipdst'] = dataframe.groupby([pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s')])['ip.ip.dst'].nunique().reset_index(name='num_unique_ipdst')['num_unique_ipdst']
+
+    # Sostituzione valori nulli e conversione del campo ip.len in intero
+    dataframe['ip.ip.len'].fillna('0', inplace=True)
+    dataframe['ip.ip.len'] = dataframe['ip.ip.len'].astype(int)
+
+    # Calcolo aggregazioni su campo ip.len
+    ## La moda è stata eliminata poichè ogni riga assumeva valore 40
+    df_aggregation['std_iplen'] = dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['ip.ip.len'].apply(lambda x: x.std()).reset_index(name='std_iplen')['std_iplen']
+    df_aggregation['entropy_iplen'] = dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['ip.ip.len'].apply(lambda x: entropy(x.value_counts()/len(x))).reset_index(name='entropy_iplen')['entropy_iplen']
+
+    # Calcolo numero di bytes per unita di tempo
+    df_aggregation['bytes_per_timeunit'] = dataframe.groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['ip.ip.len'].apply(lambda x: x.sum()/_time_groupby).reset_index(name='bytes_per_timeunit')['bytes_per_timeunit']
+
+    # Calcolo numero di pacchetti per unita di tempo
+    df_aggregation['pkt_per_timeunit'] = df_aggregation['pkt_count']/_time_groupby
+
+    # Conversione dei campi sotto elencati in intero del dataframe input
+    dataframe['modbus.modbus.func_code'].fillna('67', inplace=True)
+    dataframe['modbus.modbus.func_code'] = dataframe['modbus.modbus.func_code'].astype(int)
+    dataframe['frame.frame.len'] = dataframe['frame.frame.len'].astype(int)
+
+    # Calcolo features modbus
+    df_aggregation['modbus_response_count'] = dataframe[(dataframe['modbus.modbus.func_code'] == 3) & (dataframe['frame.frame.len'] == 85)].groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['frame.frame.len'].apply(lambda x: x.count()).reset_index(name='modbus_response_count')['modbus_response_count']
+    df_aggregation['modbus_request_count'] = dataframe[(dataframe['modbus.modbus.func_code'] == 3) & (dataframe['frame.frame.len'] == 66)].groupby(pd.Grouper(key='frame.frame.time_utc', freq=f'{_time_groupby}s'))['frame.frame.len'].apply(lambda x: x.count()).reset_index(name='modbus_request_count')['modbus_request_count']
+    df_aggregation['modb_req_resp_fraction'] = df_aggregation['modbus_request_count']/df_aggregation['modbus_request_count']
+
+    
+    if 'icmp.icmp.code' in dataframe.columns:
+        dataframe['icmp.icmp.code'].fillna(99, inplace=True)
+        dataframe['icmp.icmp.code'] = dataframe['icmp.icmp.code'].astype(int)
+        df_aggregation['icmp_request_count'] = dataframe[dataframe['icmp.icmp.code'] == 0].groupby(pd.Grouper(key='frame.frame.time_utc', freq='5s'))['icmp.icmp.code'].count().reset_index(name='icmp_request_count')['icmp_request_count']
+        df_aggregation['icmp_response_count'] = dataframe[dataframe['icmp.icmp.code'] == 8].groupby(pd.Grouper(key='frame.frame.time_utc', freq='5s'))['icmp.icmp.code'].count().reset_index(name='icmp_response_count')['icmp_response_count']
+        df_aggregation['icmp_request_count'].fillna(0, inplace=True)
+        if df_aggregation['icmp_response_count'].isna().any():
+            df_aggregation['icmp_response_count'].fillna(0, inplace=True)
+            df_aggregation['icmp_req_resp_fraction'] = df_aggregation[(df_aggregation['icmp_response_count'] != 0)]['icmp_request_count']/df_aggregation[df_aggregation['icmp_response_count'] !=0]['icmp_response_count']
+            df_aggregation['icmp_req_resp_fraction'].fillna(0, inplace=True)
+        else:
+            df_aggregation['icmp_req_resp_fraction'] = df_aggregation['icmp_request_count'] / df_aggregation['icmp_response_count']
+    else:
+        df_aggregation['icmp_request_count'] = 0
+        df_aggregation['icmp_response_count'] = 0
+        df_aggregation['icmp_req_resp_fraction'] = 0
+
+    return df_aggregation
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
