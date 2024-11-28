@@ -4,7 +4,7 @@
 Per questo si può fare riferimento a:
 https://www.python.org/downloads/release/python-3127/
 
-- Clonare il repository con
+- Clonare il repository con:
 ```
 git clone https://github.com/Giggibubbu/manprev2324.git
 ```
